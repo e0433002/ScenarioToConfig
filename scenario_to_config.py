@@ -9,8 +9,9 @@ import xlrd
 SETTINGS = 2; SETTINGS_VALUE = 3
 
 # Event variable excel column index
-INDEX = 0; SEMI = 1; EVENT = 2; ALIAS = 3; REPORT = 4;
-EVENT_ID = 5; VALID_DV = 6; DV_ID = 7; DATA_TYPE = 8; CLASS = 9
+class Column:
+    INDEX = 0; SEMI = 1; EVENT = 2; ALIAS = 3; REPORT = 4;
+    EVENT_ID = 5; VALID_DV = 6; DV_ID = 7; DATA_TYPE = 8; CLASS = 9
 
 class Event:
     def __init__(self, index, SEMI, event, alias, report, eventid, dv, dataType, classes):
@@ -38,32 +39,38 @@ def main(argv):
         print(ex)
         os.system("pause")
 
-    event_list = []     # class Event array
+    event_list = []     # Class Event list
 
-    # make xlsx to Event array
+    ##########################################
+    # Convert xlsx Event to list(event_list[])
+    ##########################################
     for row in range(sheet_0.nrows):
         # scan all row to find which cell is 'Index'
-        if sheet_0.cell_value(row, INDEX) == 'Index':
+        if sheet_0.cell_value(row, Column.INDEX) == 'Index':
+
             # find cell 'Valid DV' by correspond position
-            if sheet_0.cell_value(row, VALID_DV) == 'Valid DV':
-                # put all name & value in dictionary as {VID_NAME: VID_VALUE}
-                dv_dict = {}
-                row_of_dv = row + 1 # [Valid DV & DV Value]'s row
-                while True:
-                    if row_of_dv < sheet_0.nrows and sheet_0.cell_value(row_of_dv, VALID_DV) != '':
-                        dv_dict.update({
-                            sheet_0.cell_value(row_of_dv, VALID_DV):
-                            sheet_0.cell_value(row_of_dv, DV_ID) if sheet_0.cell_value(row_of_dv, DV_ID) != '' else 0})
-                        row_of_dv += 1 # Load next row if not blank line
-                    else:
-                        break
+            if sheet_0.cell_value(row, Column.VALID_DV) == 'Valid DV':
+                dv_id_dict = {}     # {Valid DV : DV ID}
+                data_type_dict = {} # {Valid DV : Data Type}
+                class_dict = {}     # {Valid DV : Class}
+
+                value_row = row + 1
+
+                while value_row < sheet_0.nrows and sheet_0.cell_value(value_row, Column.VALID_DV) != '':
+                    if (sheet_0.cell_value(value_row, Column.DV_ID) != '' and
+                            sheet_0.cell_value(value_row, Column.DATA_TYPE) != '' and
+                            sheet_0.cell_value(value_row, Column.CLASS) != ''):
+                        dv_id_dict.update({sheet_0.cell_value(value_row, Column.VALID_DV) : sheet_0.cell_value(value_row, Column.DV_ID)})
+                        data_type_dict.update({sheet_0.cell_value(value_row, Column.VALID_DV) : sheet_0.cell_value(value_row, Column.DATA_TYPE)})
+                        class_dict.update({sheet_0.cell_value(value_row, Column.VALID_DV) : sheet_0.cell_value(value_row, Column.CLASS)})
+                    value_row += 1 # Load next row if not blank line
 
             # convert excel Event to class Event
             data_row = row + 1
-            event = Event(sheet_0.cell_value(data_row, INDEX), sheet_0.cell_value(data_row, SEMI), # index, SEMI
-                          sheet_0.cell_value(data_row, EVENT), sheet_0.cell_value(data_row, ALIAS), # event, alias
-                          sheet_0.cell_value(data_row, REPORT), sheet_0.cell_value(data_row, EVENT_ID), # report, eventid
-                 dv_dict, sheet_0.cell_value(data_row, DATA_TYPE), sheet_0.cell_value(data_row, CLASS)) # dv(vid, value), dataType, class
+            event = Event(sheet_0.cell_value(data_row, Column.INDEX), sheet_0.cell_value(data_row, Column.SEMI), # Index, SEMI
+                          sheet_0.cell_value(data_row, Column.EVENT), sheet_0.cell_value(data_row, Column.ALIAS), # Event, Alias
+                          sheet_0.cell_value(data_row, Column.REPORT), int( sheet_0.cell_value(data_row, Column.EVENT_ID) ), # Report, EventID
+                          dv_id_dict, data_type_dict, class_dict) # {Valid ID, DV ID}, {Valid ID, Data Type}, {Valid ID, Class}
             event_list.append(event)
 
     # start GemDCConfig
@@ -78,7 +85,7 @@ def main(argv):
     i = 1
     f.write("Settings=[")
     while True:
-        f.write("{}={}".format(sheet_0.cell_value(i, EVENT), sheet_0.cell_value(i, ALIAS)))
+        f.write("{}={}".format(sheet_0.cell_value(i, Column.EVENT), sheet_0.cell_value(i, Column.ALIAS)))
         if sheet_0.cell_value(i+1, SETTINGS) == '':
             break;
         else:
@@ -88,14 +95,14 @@ def main(argv):
 
     # start Vids
     f.write('\n[Vids]\n')
-    vid_set = set()
-    vid_dict = {} # {Valid DV: DV ID}
+    Valid_DV_set = set()
+    Valid_dv_id_dict = {} # {Valid DV: DV ID}
     for ev in event_list:
         for obj_name in ev.dv: # ev.dv = Valid DV list
-            if obj_name not in vid_set:
-                f.write("Vid=[ID={}, Name={}, Type={}, Class={}]\n".format(int(ev.dv[obj_name]), obj_name, ev.dataType, ev.classes))
-                vid_set.add(obj_name) # prevent duplicate Vid
-                vid_dict.update( {obj_name : int(ev.dv[obj_name])} )
+            if obj_name not in Valid_DV_set:
+                Valid_DV_set.add(obj_name) # prevent duplicate Vid
+                Valid_dv_id_dict.update( {obj_name : int(ev.dv[obj_name])} )
+                f.write("Vid=[ID={}, Name={}, Type={}, Class={}]\n".format(Valid_dv_id_dict[obj_name], obj_name, ev.dataType[obj_name], ev.classes[obj_name]))
     # end Vids
 
     # start Events
@@ -111,9 +118,9 @@ def main(argv):
     event_link_report_list = list()
     for ev in event_list:
         event_vid_list = list()
-        for x in ev.dv: # ev.dv = Valid DV list
-            event_vid_list.append(vid_dict[x])
-        event_link_report_list.append(ev.alias)
+        for x in ev.dv:
+            event_vid_list.append(Valid_dv_id_dict[x])
+        event_link_report_list.append(ev.eventid)
         ### argument ID is temp
         f.write("Report=[ID={}, Name={}{}, Vids={}]\n".format(i, ev.SEMI+'_' if ev.SEMI != '' else '', ev.alias, event_vid_list))
         i += 1
