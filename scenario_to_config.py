@@ -93,6 +93,10 @@ def main(argv):
     f.write(']\n')
     # end GemDCConfig
 
+    # start EqConst
+    f.write('\n[EqConst]\n');
+    # end EqConst
+
     # start Vids
     f.write('\n[Vids]\n')
     Valid_DV_set = set()
@@ -131,6 +135,10 @@ def main(argv):
     for ev in event_link_report_list:
         f.write("ReportLink=[Event={}, Reports=[{}]]\n".format(ev, event_link_report_list.index(ev)+1))
     # end ReportLinks
+
+    # start Alarm
+    f.write('\n[Alarm]\n');
+    # end Alarm
 
     f.close
 
