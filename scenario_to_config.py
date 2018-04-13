@@ -1,8 +1,7 @@
-#C:Python31python.exe
+# C:Python31python.exe
 # -*- coding:utf-8 -*-
 
 import sys
-import os
 import xlrd
 
 # Settings excel column index
@@ -28,7 +27,7 @@ class Event:
 def main(argv):
     if len(sys.argv) < 2:
         print('No input file')
-        os.system("pause")
+        input('Press Enter to exit')
 
     INPUT_EXCEL = sys.argv[1]   # input excel file
 
@@ -37,18 +36,20 @@ def main(argv):
         sheet_0 = ad_wb.sheet_by_index(0)       # get sheet
     except Exception as ex:
         print(ex)
-        os.system("pause")
+        input('Press Enter to exit')
 
-    event_list = []     # Class Event list
 
     ##########################################
     # Convert xlsx Event to list(event_list[])
     ##########################################
+    event_list = []     # Class Event list
+
     for row in range(sheet_0.nrows):
         # scan all row to find which cell is 'Index'
-        if sheet_0.cell_value(row, Column.INDEX) == 'Index':
+        if (sheet_0.cell_value(row, Column.INDEX) == 'Index' and
+            sheet_0.cell_value(row + 1, Column.EVENT_ID) != ''):
 
-            # find cell 'Valid DV' by correspond position
+            # find cell 'Valid DV' by corresponding position
             if sheet_0.cell_value(row, Column.VALID_DV) == 'Valid DV':
                 dv_id_dict = {}     # {Valid DV : DV ID}
                 data_type_dict = {} # {Valid DV : Data Type}
@@ -56,6 +57,7 @@ def main(argv):
 
                 value_row = row + 1
 
+                # put DV ID, Data Type, Class to corresponding dictionary
                 while value_row < sheet_0.nrows and sheet_0.cell_value(value_row, Column.VALID_DV) != '':
                     if (sheet_0.cell_value(value_row, Column.DV_ID) != '' and
                             sheet_0.cell_value(value_row, Column.DATA_TYPE) != '' and
@@ -76,6 +78,13 @@ def main(argv):
     # start GemDCConfig
     vendor = sheet_0.cell_value(1, 0) if sheet_0.cell_value(1, 0) != '' else "Vendor"
     module = sheet_0.cell_value(1, 1) if sheet_0.cell_value(1, 1) != '' else "Module"
+
+    # cell value type, ctyp = 2 stand for float, transform float to string
+    if sheet_0.cell(1, 0).ctype == 2:
+        vendor = str(int(sheet_0.cell_value(1, 0)))
+    if sheet_0.cell(1, 1).ctype == 2:
+        module = str(int(sheet_0.cell_value(1, 1)))
+
     OUTPUT_FILE = vendor + "_" + module + ".cfg"     # output config file
     print("out:"+OUTPUT_FILE)
 
@@ -137,10 +146,12 @@ def main(argv):
     # end ReportLinks
 
     # start Alarm
-    f.write('\n[Alarm]\n');
+    f.write('\n[Alarms]\n');
     # end Alarm
 
     f.close
 
+
 if __name__ == "__main__":
     main(sys.argv)
+    input('Press Enter to exit')
