@@ -24,6 +24,11 @@ class Event:
         self.dataType = dataType
         self.classes = classes
 
+# method
+def isDuplicate(list, element):
+    for obj in list:
+        print(obj)
+
 def main(argv):
     if len(sys.argv) < 2:
         print('No input file')
@@ -43,6 +48,8 @@ def main(argv):
     # Convert xlsx Event to list(event_list[])
     ##########################################
     event_list = []     # Class Event list
+
+    duplicate_check_set = set()
 
     for row in range(sheet_0.nrows):
         # scan all row to find which cell is 'Index'
@@ -74,6 +81,12 @@ def main(argv):
                           sheet_0.cell_value(data_row, Column.REPORT), int( sheet_0.cell_value(data_row, Column.EVENT_ID) ), # Report, EventID
                           dv_id_dict, data_type_dict, class_dict) # {Valid ID, DV ID}, {Valid ID, Data Type}, {Valid ID, Class}
             event_list.append(event)
+            # check if Event ID is duplicated
+            if int(sheet_0.cell_value(data_row, Column.EVENT_ID)) not in duplicate_check_set:
+                duplicate_check_set.add(int( sheet_0.cell_value(data_row, Column.EVENT_ID) ))
+            else:
+                print("WARNING - Duplicated Event:{} in line {}."
+                    .format(sheet_0.cell_value(data_row, Column.EVENT), data_row))
 
     # start GemDCConfig
     vendor = sheet_0.cell_value(1, 0) if sheet_0.cell_value(1, 0) != '' else "Vendor"
@@ -86,7 +99,6 @@ def main(argv):
         module = str(int(sheet_0.cell_value(1, 1)))
 
     OUTPUT_FILE = vendor + "_" + module + ".cfg"     # output config file
-    print("out:"+OUTPUT_FILE)
 
     f = open(OUTPUT_FILE, 'w', encoding = 'UTF-8')
     f.write('[GemDCConfig]\n')
@@ -132,9 +144,10 @@ def main(argv):
     for ev in event_list:
         event_vid_list = list()
         for x in ev.dv:
+            if Valid_dv_id_dict[x] in event_vid_list:
+                print("WARNING - Duplicated Vid:{} in Event:{}.".format(x, ev.alias))
             event_vid_list.append(Valid_dv_id_dict[x])
         event_link_report_list.append(ev.eventid)
-        ### argument ID is temp
         f.write("Report=[ID={}, Name={}{}, Vids={}]\n".format(i, ev.SEMI+'_' if ev.SEMI != '' else '', ev.alias, event_vid_list))
         i += 1
     # end Report
@@ -150,6 +163,8 @@ def main(argv):
     # end Alarm
 
     f.close
+
+    print("Config file: " + OUTPUT_FILE)
 
 
 if __name__ == "__main__":
